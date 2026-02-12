@@ -1,0 +1,80 @@
+```
+cols = [
+    "product_name",
+    "brands",
+    "countries_en",
+    "ingredients_text",  # essential for allergy detection
+    "nutrition_grade_fr",
+    "energy_100g",
+    "fat_100g",
+    "carbohydrates_100g",
+    "sugars_100g",
+    "proteins_100g"
+]
+
+df = pd.read_csv(
+    "final_ai_dataset.csv",  # Replace with your original full CSV
+    usecols=cols,
+    engine="python",
+    on_bad_lines="skip"
+)
+print("Initial rows:", len(df))
+df = df[df["ingredients_text"].notna()]
+df = df[df["ingredients_text"].str.strip() != ""]
+
+print("After removing empty ingredients:", len(df))
+df = df.drop_duplicates(subset=["product_name", "brands", "countries_en"])
+print("After removing duplicates:", len(df))
+
+def clean_ingredients(text):
+    if pd.isna(text):
+        return ""
+    text = text.lower()  # convert to lowercase
+    text = re.sub(r"\(.*?\)", "", text)  # remove parentheses content
+    text = re.sub(r"[^a-zA-Z, ]", "", text)  # keep only letters and commas
+    text = re.sub(r"\s+", " ", text)  # remove extra spaces
+    return text.strip()
+df["ingredients_text"] = df["ingredients_text"].apply(clean_ingredients)
+print(df["ingredients_text"].sample(5).values)
+numeric_cols = ["energy_100g", "fat_100g", "carbohydrates_100g", "sugars_100g", "proteins_100g"]
+for col in numeric_cols:
+    df[col] = pd.to_numeric(df[col], errors="coerce")  # convert to numeric
+    df[col] = df[col].fillna(df[col].median())  # fill missing with median
+df["nutrition_grade_fr"] = df["nutrition_grade_fr"].str.lower()
+df = df[df["nutrition_grade_fr"].isin(["a", "b", "c", "d", "e"])]  # keep valid grades
+df.to_csv("final_ai_dataset.csv", index=False)
+df.to_excel("final_ai_dataset.xlsx", index=False)
+print(" Final AI-ready dataset saved!")
+print("Total rows:", len(df))
+print("Columns:", df.columns)
+
+```
+
+```
+import pandas as pd
+df = pd.read_csv("final.csv")
+
+# Define common allergens to detect
+allergens = ["peanut", "milk", "gluten", "soy", "egg", "fish", "tree nut",
+             "almond", "cashew", "walnut", "hazelnut", "pistachio",
+             "arachide", "lait", "oeuf", "poisson", "noix", "amande", "cacahuète"]
+
+def detect_allergens(text):
+    found = []
+    for allergen in allergens:
+        if allergen in text.lower():
+            found.append(allergen)
+    return ", ".join(found) if found else "None"
+
+# Apply function to create new column
+df["allergens_detected"] = df["ingredients_text"].apply(detect_allergens)
+
+# Quick check
+print(df[["product_name", "ingredients_text", "allergens_detected"]].sample(10))
+
+print("Dataset with allergen detection saved!")
+print("Total rows:", len(df))
+
+
+
+```
